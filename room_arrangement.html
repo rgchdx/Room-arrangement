@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<!-- saved from url=(0060)https://www.interactivecomputergraphics.com/Code/05/hat.html -->
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+  <script id="simplify-jobs-page-script" src="chrome-extension://pbanhockgagggenencehbnadejlgchfc/js/pageScript.bundle.js"></script>
+</head>
+<body data-new-gr-c-s-check-loaded="14.1231.0" data-gr-ext-installed="">
+
+  <h1>Stars floating in space</h1>
+  <h2>WASD to move and arrows to look around</h2>
+  <p> </p>
+
+  <script id="vertex-shader" type="x-shader/x-vertex">
+    #version 300 es
+    in vec4 aPosition;
+    uniform mat4 uModelViewMatrix;
+    uniform mat4 uProjectionMatrix;
+
+    void main() {
+        gl_Position = uProjectionMatrix * uModelViewMatrix * aPosition;
+        gl_PointSize = 5.0;
+    }
+  </script>
+
+  <script id="fragment-shader" type="x-shader/x-fragment">
+    #version 300 es
+    precision mediump float;
+    uniform vec4 uColor;
+    out vec4 fColor;
+    void main() {
+      fColor = uColor;
+    }
+  </script>
+
+  <script type="text/javascript" src="./room/initShaders.js"></script>
+  <script type="text/javascript" src="./room/MVnew.js"></script>
+  <script type="text/javascript" src="./room/room_arrangement.js"></script>
+
+  <canvas id="gl-canvas" width="512" height="512">
+    Oops ... your browser doesn't support the HTML5 canvas element
+  </canvas>
+
+</body>
+</html>

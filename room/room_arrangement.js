@@ -4,9 +4,16 @@ var room = function() {
     let canvas, gl, program;
 
     // camera position and view
-    let eye = vec3(0.0, 1.0, 5.0);
-    let at = vec3(0.0, 1.0, 0.0);
-    let up = vec3(0.0, 1.0, 0.0);
+    let eye = vec3(0.0, 10.0, 0.0);
+    let at = vec3(0.0, 0.0, 0.0);
+    let up = vec3(0.0, 0.0, -1.0);
+
+    // alternate position to look at room when objects placed
+    let currentEye = vec3(0.0, 1.0, 10.0);
+    let currentAt = vec3(0.0, 0.0, 1.0);
+    let currentUp = vec3(0.0, 0.0, -1.0);
+
+    let isFloorView = false;
 
     // matrices
     let fov = 60;
@@ -21,9 +28,12 @@ var room = function() {
     let roomSize = 20;
     let tileCount = 20;
     let tileSize = roomSize / tileCount;
-    let tiles = [];
+    let tiles = [
+        { pos: [0, 0, 0], selected: false },
+        { pos: [2, 0, 0], selected: true },
+    ];
 
-    window.onload() = function init() {
+    window.onload = function init() {
         // Getting canvas elements
         canvas = document.getElementById("gl-canvas");
         gl = canvas.getContext("webgl2");
@@ -32,6 +42,7 @@ var room = function() {
         // Set viewport
         gl.viewport(0, 0, canvas.width, canvas.height);
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         gl.enable(gl.DEPTH_TEST);
 
         // initialize shaders
@@ -42,7 +53,26 @@ var room = function() {
 
         window.addEventListener("keydown", keypressed);
         window.addEventListener("mousemove", mouseMoved);
+        window.addEventListener("keydown", (event) => {
+            if (event.key === "v") {
+                toggleView();
+            }
+        });
 
+        render();
+    }
+
+    function toggleView() {
+        if (isFloorView) {
+            eye = vec3(0.0, 10.0, 0.0);
+            at = vec3(0.0, 0.0, 0.0);
+            up = vec3(0.0, 0.0, -1.0);
+        } else {
+            eye = currentEye;
+            at = currentAt;
+            up = currentUp;
+        }
+        isFloorView = !isFloorView;
         render();
     }
 
@@ -92,6 +122,12 @@ var room = function() {
         let vBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, flatten(vertices), gl.STATIC_DRAW);
+
+        let vPosition = gl.getAttribLocation(program, "vPosition");
+        gl.vertexAttribPointer(vPosition, 4, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(vPosition);
+
+        gl.drawArrays(gl.TRIANGLE_FAN, 0, vertices.length);
 
         let aPosition = gl.getAttribLocation(program, "aPosition");
         gl.vertexAttribPointer(aPosition, 4, gl.FLOAT, false, 0, 0);

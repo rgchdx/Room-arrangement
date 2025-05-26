@@ -4,7 +4,7 @@ var room = function() {
     let canvas, gl, program;
 
     // camera position and view
-    let eye = vec3(0.0, 10.0, 0.0);
+    let eye = vec3(0.0, 17.0, 0.0);
     let at = vec3(0.0, 0.0, 0.0);
     let up = vec3(0.0, 0.0, -1.0);
 
@@ -26,12 +26,9 @@ var room = function() {
 
     // initial room size
     let roomSize = 20;
-    let tileCount = 20;
+    let tileCount = 15;
     let tileSize = roomSize / tileCount;
-    let tiles = [
-        { pos: [0, 0, 0], selected: false },
-        { pos: [2, 0, 0], selected: true },
-    ];
+    let tiles = [];
 
     window.onload = function init() {
         // Getting canvas elements
@@ -51,6 +48,7 @@ var room = function() {
 
         setTiles();
 
+
         window.addEventListener("keydown", keypressed);
         window.addEventListener("mousemove", mouseMoved);
         window.addEventListener("keydown", (event) => {
@@ -64,7 +62,7 @@ var room = function() {
 
     function toggleView() {
         if (isFloorView) {
-            eye = vec3(0.0, 10.0, 0.0);
+            eye = vec3(0.0, 17.0, 0.0);
             at = vec3(0.0, 0.0, 0.0);
             up = vec3(0.0, 0.0, -1.0);
         } else {
@@ -79,6 +77,7 @@ var room = function() {
     function setTiles() {
         for (let i = 0; i < tileCount; i++) {
             for (let j = 0; j < tileCount; j++) {
+                // -roomSize / 2 centers the grid in the room by starting the first timle at the leftmost x and backmost z
                 let x = -roomSize / 2 + i * tileSize + tileSize / 2;
                 let z = -roomSize / 2 + j * tileSize + tileSize / 2;
                 tiles.push({
@@ -104,6 +103,7 @@ var room = function() {
 
             drawQuad(tileSize);
         }
+        createWalls();
 
         requestAnimationFrame(render);
     }
@@ -140,6 +140,66 @@ var room = function() {
         gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
     }
 
+    function createWalls() {
+        let wallHeight = 10;
+    
+        // Define four wall planes: back, right, front, left
+        const walls = [
+            // Back wall (Z = -roomSize / 2)
+            [
+                vec4(-roomSize + 0.5, 0, -roomSize + 1, 1.0),
+                vec4(roomSize/4 - 3.9, 0, -roomSize + 1, 1.0),
+                vec4(roomSize/4 - 3.9, wallHeight, -roomSize + 1, 1.0),
+                vec4(-roomSize + 0.5, wallHeight, -roomSize + 1, 1.0),
+            ],
+            // Right wall (X = roomSize / 2)
+            [
+                vec4(roomSize/4 - 4, 0, -roomSize + 1, 1.0),
+                vec4(roomSize/4 - 4, 0, -roomSize/ + 1, 1.0),
+                vec4(roomSize/4 - 4, wallHeight, roomSize/4 - 4, 1.0),
+                vec4(roomSize/4 - 4, wallHeight, -roomSize+1, 1.0),
+            ],
+            // Front wall (Z = roomSize / 2)
+            [
+                vec4(roomSize / 2, 0, roomSize / 2, 1.0),
+                vec4(-roomSize / 2, 0, roomSize / 2, 1.0),
+                vec4(-roomSize / 2, wallHeight, roomSize / 2, 1.0),
+                vec4(roomSize / 2, wallHeight, roomSize / 2, 1.0),
+            ],
+            // Left wall (X = -roomSize / 2)
+            [
+                vec4(-roomSize / 2, 0, roomSize / 2, 1.0),
+                vec4(-roomSize / 2, 0, -roomSize / 2, 1.0),
+                vec4(-roomSize / 2, wallHeight, -roomSize / 2, 1.0),
+                vec4(-roomSize / 2, wallHeight, roomSize / 2, 1.0),
+            ]
+        ];
+    
+        const indices = [0, 1, 2, 0, 2, 3];
+    
+        for (let wall of walls) {
+            let vBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, flatten(wall), gl.STATIC_DRAW);
+    
+            let vPosition = gl.getAttribLocation(program, "vPosition");
+            gl.vertexAttribPointer(vPosition, 4, gl.FLOAT, false, 0, 0);
+            gl.enableVertexAttribArray(vPosition);
+    
+            let aPosition = gl.getAttribLocation(program, "aPosition");
+            gl.vertexAttribPointer(aPosition, 4, gl.FLOAT, false, 0, 0);
+            gl.enableVertexAttribArray(aPosition);
+    
+            let iBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, iBuffer);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+    
+            gl.uniform4fv(gl.getUniformLocation(program, "uColor"), wallColor);
+    
+            gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
+        }
+    }
+
     function keypressed(event) {
         const speed = 0.3;
         switch (event.key) {
@@ -157,12 +217,15 @@ var room = function() {
         let x = event.clientX - rect.left;
         let y = event.clientY - rect.top;
 
-        let tileX = Math.floor((x / canvas.width) * tileCount);
-        let tileY = Math.floor((y / canvas.height) * tileCount);
+        let xWorld = (x / rect.width) * roomSize - roomSize / 2;
+        let zWorld = (y / rect.height) * roomSize - roomSize / 2;
 
-        for (let i = 0; i < tiles.length; i++) {
-            tiles[i].selected = (i === tileX + tileY * tileCount);
+        for (let tile of tiles) {
+            let dx = Math.abs(xWorld - tile.pos[0]);
+            let dz = Math.abs(zWorld - tile.pos[2]);
+            tile.selected = dx < tileSize / 2 && dz < tileSize / 2;
         }
+        console.log(`Mouse moved to: (${xWorld.toFixed(2)}, ${zWorld.toFixed(2)})`);
     }
 }
 

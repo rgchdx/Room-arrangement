@@ -145,19 +145,17 @@ var room = function() {
     
         // Define four wall planes: back, right, front, left
         const walls = [
-            // Back wall (Z = -roomSize / 2)
             [
                 vec4(-roomSize + 0.5, 0, -roomSize + 1, 1.0),
                 vec4(roomSize/4 - 3.9, 0, -roomSize + 1, 1.0),
                 vec4(roomSize/4 - 3.9, wallHeight, -roomSize + 1, 1.0),
                 vec4(-roomSize + 0.5, wallHeight, -roomSize + 1, 1.0),
             ],
-            // Right wall (X = roomSize / 2)
             [
-                vec4(roomSize/4 - 4, 0, -roomSize + 1, 1.0),
-                vec4(roomSize/4 - 4, 0, -roomSize/ + 1, 1.0),
-                vec4(roomSize/4 - 4, wallHeight, roomSize/4 - 4, 1.0),
-                vec4(roomSize/4 - 4, wallHeight, -roomSize+1, 1.0),
+                vec4(roomSize/4 - 4.4, 0, -roomSize + 1, 1.0), // top 
+                vec4(roomSize/4 - 4.4, 0, roomSize/4, 1.0),
+                vec4(roomSize/4 - 4.4, wallHeight, roomSize/4, 1.0),
+                vec4(roomSize/4 - 4.4, wallHeight, -roomSize + 1, 1.0), // top
             ],
             // Front wall (Z = roomSize / 2)
             [

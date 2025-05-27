@@ -13,7 +13,7 @@ var room = function() {
     let currentAt = vec3(0.0, 0.0, 1.0);
     let currentUp = vec3(0.0, 0.0, -1.0);
 
-    let isFloorView = false;
+    let isFloorView = true;
 
     // matrices
     let fov = 60;
@@ -29,6 +29,8 @@ var room = function() {
     let tileCount = 15;
     let tileSize = roomSize / tileCount;
     let tiles = [];
+
+    let selectedTile = null;
 
     window.onload = function init() {
         // Getting canvas elements
@@ -56,6 +58,7 @@ var room = function() {
                 toggleView();
             }
         });
+        canvas.addEventListener("click", onClickTile);
 
         render();
     }
@@ -216,6 +219,38 @@ var room = function() {
             tile.selected = dx < tileSize / 2 && dz < tileSize / 2;
         }
         console.log(`Mouse moved to: (${xWorld.toFixed(2)}, ${zWorld.toFixed(2)})`);
+    }
+
+    function onClickTile(event) {
+        if(!isFloorView){
+            return;
+        }
+        console.log("Tile clicked");
+        let rect = canvas.getBoundingClientRect();
+        let x = event.clientX - rect.left;
+        let y = event.clientY - rect.top;
+        let xWorld = (x / rect.width) * roomSize - roomSize / 2;
+        let zWorld = (y / rect.height) * roomSize - roomSize / 2;
+
+        for (let tile of tiles) {
+            let dx = Math.abs(xWorld - tile.pos[0]);
+            let dz = Math.abs(zWorld - tile.pos[2]);
+            if (dx < tileSize / 2 && dz < tileSize / 2) {
+                console.log("Tile clicked at position:", tile.pos);
+                showCubeSizeMenu(tile);
+                console.log("Tile selected:", tile);
+                break;
+            }
+        }
+    }
+
+    function showCubeSizeMenu(tile) {
+        selectedTile = tile;
+        console.log("Showing cube size menu for tile at position:", tile.pos);
+        let menu = document.getElementById("cube-size-menu");
+        menu.style.left = event.pageX + "px";
+        menu.style.top = event.pageY + "px";
+        menu.style.display = "block";
     }
 }
 

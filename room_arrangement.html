@@ -7,8 +7,12 @@
 </head>
 <body data-new-gr-c-s-check-loaded="14.1231.0" data-gr-ext-installed="">
 
-  <h1>Stars floating in space</h1>
-  <h2>WASD to move and arrows to look around</h2>
+  <div id="cube-menu" style="display:none; position:absolute; background:white; border:1px solid black; padding:10px;">
+    <p>Select Cube Size:</p>
+    <button onclick="placeCube(1)">Small</button>
+    <button onclick="placeCube(2)">Medium</button>
+    <button onclick="placeCube(3)">Large</button>
+</div>
   <p> </p>
 
   <script id="vertex-shader" type="x-shader/x-vertex">

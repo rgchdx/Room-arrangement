@@ -31,6 +31,9 @@ var room = function() {
     let tiles = [];
 
     let selectedTile = null;
+    let inselectmenu = false;
+
+    let furniture = [];
 
     window.onload = function init() {
         // Getting canvas elements
@@ -59,6 +62,7 @@ var room = function() {
             }
         });
         canvas.addEventListener("click", onClickTile);
+        window.placeCube = placeCube;
 
         render();
     }
@@ -105,6 +109,13 @@ var room = function() {
             gl.uniform4fv(gl.getUniformLocation(program, "uColor"), color);
 
             drawQuad(tileSize);
+        }
+        for (let item of furniture) {
+            let mv = mult(lookAt(eye, at, up), translate(item.pos[0], item.pos[1], item.pos[2]));
+            gl.uniformMatrix4fv(gl.getUniformLocation(program, "uModelViewMatrix"), false, flatten(mv));
+            gl.uniform4fv(gl.getUniformLocation(program, "uColor"), vec4(0.3, 0.6, 0.8, 1.0)); // any cube color
+
+            drawCube(item.size);
         }
         createWalls();
 
@@ -212,17 +223,19 @@ var room = function() {
 
         let xWorld = (x / rect.width) * roomSize - roomSize / 2;
         let zWorld = (y / rect.height) * roomSize - roomSize / 2;
-
-        for (let tile of tiles) {
-            let dx = Math.abs(xWorld - tile.pos[0]);
-            let dz = Math.abs(zWorld - tile.pos[2]);
-            tile.selected = dx < tileSize / 2 && dz < tileSize / 2;
+        if (!inselectmenu) {
+            for (let tile of tiles) {
+                let dx = Math.abs(xWorld - tile.pos[0]);
+                let dz = Math.abs(zWorld - tile.pos[2]);
+                tile.selected = dx < tileSize / 2 && dz < tileSize / 2;
+            }
         }
         console.log(`Mouse moved to: (${xWorld.toFixed(2)}, ${zWorld.toFixed(2)})`);
     }
 
     function onClickTile(event) {
         if(!isFloorView){
+            console.log("Click ignored, not in floor view");
             return;
         }
         console.log("Tile clicked");
@@ -237,20 +250,78 @@ var room = function() {
             let dz = Math.abs(zWorld - tile.pos[2]);
             if (dx < tileSize / 2 && dz < tileSize / 2) {
                 console.log("Tile clicked at position:", tile.pos);
-                showCubeSizeMenu(tile);
+                showCubeSizeMenu(tile,event);
                 console.log("Tile selected:", tile);
                 break;
             }
         }
     }
 
-    function showCubeSizeMenu(tile) {
+    function showCubeSizeMenu(tile,event) {
         selectedTile = tile;
+        inselectmenu = true;
         console.log("Showing cube size menu for tile at position:", tile.pos);
-        let menu = document.getElementById("cube-size-menu");
+        let menu = document.getElementById("cube-menu");
         menu.style.left = event.pageX + "px";
         menu.style.top = event.pageY + "px";
         menu.style.display = "block";
+    }
+
+    function placeCube(size){
+        if (!selectedTile || !inselectmenu) {
+            console.log("No tile selected or menu not active.");
+            return;
+        }
+        console.log("Placing cube of size:", size, "at tile position:", selectedTile.pos);
+        let cubePos = vec3(selectedTile.pos[0], size / 2, selectedTile.pos[2]);
+        furniture.push({
+            pos: cubePos,
+            size: size,
+        })
+        console.log("Cube placed at position:", cubePos);
+
+        selectedTile.selected = false;
+        selectedTile = null;
+        inselectmenu = false;
+        let menu = document.getElementById("cube-menu");
+        menu.style.display = "none";
+    }
+
+    function drawCube(size) {
+        console.log("Drawing cube with size:", size);
+        let half = size / 2;
+        let vertices = [
+            vec4(-half, -half, -half, 1),
+            vec4(-half, -half, half, 1),
+            vec4(half, -half, half, 1),
+            vec4(half, -half, -half, 1),
+            vec4(-half, half, -half, 1),
+            vec4(-half, half, half, 1),
+            vec4(half, half, half, 1),
+            vec4(half, half, -half, 1)
+        ]
+        let indices = [
+            0, 1, 2, 0, 2, 3, // bottom
+            4, 5, 6, 4, 6, 7, // top
+            0, 1, 5, 0, 5, 4, // left
+            2, 3, 7, 2, 7, 6, // right
+            1, 2, 6, 1, 6, 5, // front
+            0, 3, 7, 0, 7, 4 // back
+        ];
+        let vBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, flatten(vertices), gl.STATIC_DRAW);
+        let vPosition = gl.getAttribLocation(program, "vPosition");
+        gl.vertexAttribPointer(vPosition, 4, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(vPosition);
+        let aPosition = gl.getAttribLocation(program, "aPosition");
+        gl.vertexAttribPointer(aPosition, 4, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(aPosition);
+        let iBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, iBuffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+        gl.uniform4fv(gl.getUniformLocation(program, "uColor"), vec4(0.3, 0.6, 0.8, 1.0)); // any cube color
+        gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
     }
 }
 

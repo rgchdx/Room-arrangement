@@ -110,6 +110,7 @@ var room = function() {
 
             drawQuad(tileSize);
         }
+        createWalls();
         for (let item of furniture) {
             let mv = mult(lookAt(eye, at, up), translate(item.pos[0], item.pos[1], item.pos[2]));
             gl.uniformMatrix4fv(gl.getUniformLocation(program, "uModelViewMatrix"), false, flatten(mv));
@@ -117,7 +118,6 @@ var room = function() {
 
             drawCube(item.size);
         }
-        createWalls();
 
         requestAnimationFrame(render);
     }

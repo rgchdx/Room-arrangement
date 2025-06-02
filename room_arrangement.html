@@ -6,12 +6,20 @@
   <script id="simplify-jobs-page-script" src="chrome-extension://pbanhockgagggenencehbnadejlgchfc/js/pageScript.bundle.js"></script>
 </head>
 <body data-new-gr-c-s-check-loaded="14.1231.0" data-gr-ext-installed="">
+  <h1>Room Arrangement</h1>
+  <p>Click on the canvas to place furniture. Press f to change floor color and c to change the wall color.</p>
+  <p>Press v to change the view. You can move around in the 3D view.</p>
+  <p>Press the furniture again to do further actions.</p>
 
   <div id="cube-menu" style="display:none; position:absolute; background:white; border:1px solid black; padding:10px;">
     <p>Select Cube Size:</p>
-    <button onclick="placeCube(1)">Small</button>
-    <button onclick="placeCube(2)">Medium</button>
-    <button onclick="placeCube(3)">Large</button>
+    <button onclick="placeCube('chair')">Chair</button>
+    <button onclick="placeCube('table')">Table</button>
+    <button onclick="placeCube('sofa')">Sofa</button>
+</div>
+<div id="furniture-menu" style="position:absolute; display:none; background:#fff; border:1px solid #aaa; padding:5px;">
+  <button onclick="changeFurnitureColor()">Change Color</button>
+  <button onclick="deleteSelectedFurniture()">Delete</button>
 </div>
   <p> </p>
 

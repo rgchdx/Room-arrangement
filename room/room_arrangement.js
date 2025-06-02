@@ -64,6 +64,20 @@ var room = function() {
         canvas.addEventListener("click", onClickTile);
         window.placeCube = placeCube;
 
+        window.changeFurnitureColor = function() {
+            console.log("Changing color of selected furniture");
+            let selected = furniture.find(f => f.selected);
+            console.log("Selected furniture:", selected);
+            if (selected) {
+                selected.color = vec4(Math.random(), Math.random(), Math.random(), 1.0);
+            }
+        };
+        
+        window.deleteSelectedFurniture = function() {
+            furniture = furniture.filter(f => !f.selected);
+            hideFurnitureMenu();
+        };
+
         render();
     }
 
@@ -78,7 +92,11 @@ var room = function() {
             up = currentUp;
         }
         isFloorView = !isFloorView;
-        render();
+        selectedTile = null;
+        inselectmenu = false;
+        for (let tile of tiles) {
+            tile.selected = false;
+        }
     }
 
     function setTiles() {
@@ -114,9 +132,12 @@ var room = function() {
         for (let item of furniture) {
             let mv = mult(lookAt(eye, at, up), translate(item.pos[0], item.pos[1], item.pos[2]));
             gl.uniformMatrix4fv(gl.getUniformLocation(program, "uModelViewMatrix"), false, flatten(mv));
-            gl.uniform4fv(gl.getUniformLocation(program, "uColor"), vec4(0.3, 0.6, 0.8, 1.0)); // any cube color
-
-            drawCube(item.size);
+        
+            let color = item.selected ? item.color : vec4(1.0, 0.0, 0.0, 1.0)
+            console.log(item.selected ? "Selected furniture color:" : "Furniture color:", color);
+            gl.uniform4fv(gl.getUniformLocation(program, "uColor"), color);
+        
+            drawFurniture(item);
         }
 
         requestAnimationFrame(render);
@@ -156,9 +177,7 @@ var room = function() {
 
     function createWalls() {
         let wallHeight = 10;
-    
-        // Define four wall planes: back, right, front, left
-        const walls = [
+            const walls = [
             [
                 vec4(-roomSize + 0.5, 0, -roomSize + 0.7, 1.0),
                 vec4(roomSize/4 - 3.9, 0, -roomSize + 1, 1.0),
@@ -234,16 +253,25 @@ var room = function() {
     }
 
     function onClickTile(event) {
-        if(!isFloorView){
-            console.log("Click ignored, not in floor view");
-            return;
-        }
         console.log("Tile clicked");
         let rect = canvas.getBoundingClientRect();
         let x = event.clientX - rect.left;
         let y = event.clientY - rect.top;
         let xWorld = (x / rect.width) * roomSize - roomSize / 2;
         let zWorld = (y / rect.height) * roomSize - roomSize / 2;
+
+        for (let item of furniture) {
+            let dx = Math.abs(xWorld - item.pos[0]);
+            let dz = Math.abs(zWorld - item.pos[2]);
+            let size = item.size;
+            if (dx < size / 2 && dz < size / 2) {
+                deselectAllFurniture();
+                item.selected = true;
+                showFurnitureMenu(event.pageX, event.pageY);
+                return;
+            }
+        }
+        deselectAllFurniture();
 
         for (let tile of tiles) {
             let dx = Math.abs(xWorld - tile.pos[0]);
@@ -267,62 +295,212 @@ var room = function() {
         menu.style.display = "block";
     }
 
-    function placeCube(size){
+    
+
+    function placeCube(type){
         if (!selectedTile || !inselectmenu) {
             console.log("No tile selected or menu not active.");
             return;
         }
-        console.log("Placing cube of size:", size, "at tile position:", selectedTile.pos);
-        let cubePos = vec3(selectedTile.pos[0], size / 2, selectedTile.pos[2]);
+    
+        let size;
+        switch (type) {
+            case 'chair':
+                size = 1;
+                break;
+            case 'table':
+                size = 1.5;
+                break;
+            case 'sofa':
+                size = 2;
+                break;
+            default:
+                console.warn("Unknown furniture type:", type);
+                return;
+        }
+    
+        let yPos = 0.0;
+        let cubePos = vec3(selectedTile.pos[0], yPos, selectedTile.pos[2]);
         furniture.push({
+            type: type,
             pos: cubePos,
             size: size,
-        })
-        console.log("Cube placed at position:", cubePos);
-
+            selected: false,
+            rotation: 0,
+            color: vec4(0.3, 0.6, 0.8, 1.0)
+        });
+    
         selectedTile.selected = false;
         selectedTile = null;
         inselectmenu = false;
+    
         let menu = document.getElementById("cube-menu");
         menu.style.display = "none";
     }
 
-    function drawCube(size) {
-        console.log("Drawing cube with size:", size);
+    function drawFurniture(item) {
+        let { type, size } = item;
         let half = size / 2;
-        let vertices = [
-            vec4(-half, -half, -half, 1),
-            vec4(-half, -half, half, 1),
-            vec4(half, -half, half, 1),
-            vec4(half, -half, -half, 1),
-            vec4(-half, half, -half, 1),
-            vec4(-half, half, half, 1),
-            vec4(half, half, half, 1),
-            vec4(half, half, -half, 1)
-        ]
-        let indices = [
-            0, 1, 2, 0, 2, 3, // bottom
-            4, 5, 6, 4, 6, 7, // top
-            0, 1, 5, 0, 5, 4, // left
-            2, 3, 7, 2, 7, 6, // right
-            1, 2, 6, 1, 6, 5, // front
-            0, 3, 7, 0, 7, 4 // back
-        ];
+    
+        let vertices, indices;
+    
+        if (type === 'chair') {
+            vertices = [
+                // seat
+                vec4(-0.5, 0.0, -0.5, 1), vec4(-0.5, 0.0, 0.5, 1), vec4(0.5, 0.0, 0.5, 1), vec4(0.5, 0.0, -0.5, 1),
+                vec4(-0.5, 0.5, -0.5, 1), vec4(-0.5, 1.0, 0.5, 1), vec4(0.5, 1.0, 0.5, 1), vec4(0.5, 1.0, -0.5, 1),
+    
+                // backrest
+                vec4(-0.5, 0.5, -0.5, 1), vec4(-0.5, 2.0, -0.5, 1), vec4(0.5, 2.0, -0.5, 1), vec4(0.5, 1.0, -0.5, 1)
+            ];
+    
+            indices = [
+                0, 1, 2, 0, 2, 3,  // bottom
+                4, 5, 6, 4, 6, 7,  // top
+                0, 1, 5, 0, 5, 4,  // left
+                2, 3, 7, 2, 7, 6,  // right
+                1, 2, 6, 1, 6, 5,  // front
+                0, 3, 7, 0, 7, 4,  // back
+                8, 9,10, 8,10,11   // backrest front
+            ];
+    
+        } else if (type === 'table') { // I got help from copilot for this portion.
+            let topHeight = 0.1;
+            let topY = 1.0;
+        
+            let legWidth = 0.1;
+            let legHeight = topY;
+            // Table top
+            vertices = [
+                vec4(-1.0, topY, -0.6, 1), vec4(-1.0, topY, 0.6, 1), vec4(1.0, topY, 0.6, 1), vec4(1.0, topY, -0.6, 1),
+                vec4(-1.0, topY + topHeight, -0.6, 1), vec4(-1.0, topY + topHeight, 0.6, 1), vec4(1.0, topY + topHeight, 0.6, 1), vec4(1.0, topY + topHeight, -0.6, 1)
+            ];
+
+            let legVertices = [
+                // Front-left leg
+                vec4(-1.0, 0, -0.6, 1), vec4(-1.0, topY, -0.6, 1), vec4(-1.0 + legWidth, topY, -0.6, 1), vec4(-1.0 + legWidth, 0, -0.6, 1),
+                // Front-right leg
+                vec4(1.0 - legWidth, 0, -0.6, 1), vec4(1.0 - legWidth, topY, -0.6, 1), vec4(1.0, topY, -0.6, 1), vec4(1.0, 0, -0.6, 1),
+                // Back-left leg
+                vec4(-1.0, 0, 0.6, 1), vec4(-1.0, topY, 0.6, 1), vec4(-1.0 + legWidth, topY, 0.6, 1), vec4(-1.0 + legWidth, 0, 0.6, 1),
+                // Back-right leg
+                vec4(1.0 - legWidth, 0, 0.6, 1), vec4(1.0 - legWidth, topY, 0.6, 1), vec4(1.0, topY, 0.6, 1), vec4(1.0, 0, 0.6, 1)
+            ];
+        
+            vertices = vertices.concat(legVertices);
+        
+            indices = [
+                // Table top
+                4, 5, 6, 4, 6, 7,
+                0, 1, 5, 0, 5, 4,
+                1, 2, 6, 1, 6, 5,
+                2, 3, 7, 2, 7, 6,
+                3, 0, 4, 3, 4, 7,
+                0, 1, 2, 0, 2, 3,
+                // Front-left leg
+                8, 9, 10, 8, 10, 11,
+                // Front-right leg
+                12, 13, 14, 12, 14, 15,
+                // Back-left leg
+                16, 17, 18, 16, 18, 19,
+                // Back-right leg
+                20, 21, 22, 20, 22, 23
+            ];
+        
+            // Legs (4 total, 1 at each corner)
+            let legPositions = [
+                [-0.9, 0, -0.5],
+                [-0.9, 0,  0.5],
+                [ 0.9, 0, -0.5],
+                [ 0.9, 0,  0.5],
+            ];
+        
+            for (let i = 0; i < legPositions.length; i++) {
+                let [x, y, z] = legPositions[i];
+        
+                let baseIndex = vertices.length;
+        
+                vertices.push(
+                    vec4(x, y, z, 1),
+                    vec4(x + legWidth, y, z, 1),
+                    vec4(x + legWidth, y, z + legWidth, 1),
+                    vec4(x, y, z + legWidth, 1),
+        
+                    vec4(x, y + legHeight, z, 1),
+                    vec4(x + legWidth, y + legHeight, z, 1),
+                    vec4(x + legWidth, y + legHeight, z + legWidth, 1),
+                    vec4(x, y + legHeight, z + legWidth, 1)
+                );
+        
+                // Add indices for this leg (6 faces)
+                indices.push(
+                    baseIndex, baseIndex + 1, baseIndex + 2, baseIndex, baseIndex + 2, baseIndex + 3, // bottom
+                    baseIndex + 4, baseIndex + 5, baseIndex + 6, baseIndex + 4, baseIndex + 6, baseIndex + 7, // top
+                    baseIndex, baseIndex + 1, baseIndex + 5, baseIndex, baseIndex + 5, baseIndex + 4, // side 1
+                    baseIndex + 1, baseIndex + 2, baseIndex + 6, baseIndex + 1, baseIndex + 6, baseIndex + 5, // side 2
+                    baseIndex + 2, baseIndex + 3, baseIndex + 7, baseIndex + 2, baseIndex + 7, baseIndex + 6, // side 3
+                    baseIndex + 3, baseIndex + 0, baseIndex + 4, baseIndex + 3, baseIndex + 4, baseIndex + 7  // side 4
+                );
+            }
+        } else if (type === 'sofa') {
+            vertices = [
+                // base
+                vec4(-1.5, 0.0, -0.5, 1), vec4(-1.5, 0.0, 0.5, 1), vec4(1.5, 0.0, 0.5, 1), vec4(1.5, 0.0, -0.5, 1),
+                vec4(-1.5, 1.0, -0.5, 1), vec4(-1.5, 1.0, 0.5, 1), vec4(1.5, 1.0, 0.5, 1), vec4(1.5, 1.0, -0.5, 1),
+    
+                // backrest
+                vec4(-1.5, 1.0, -0.5, 1), vec4(-1.5, 1.5, -0.5, 1), vec4(1.5, 1.5, -0.5, 1), vec4(1.5, 1.0, -0.5, 1)
+            ];
+    
+            indices = [
+                0,1,2,0,2,3,
+                4,5,6,4,6,7,
+                1,2,6,1,6,5,
+                0,3,7,0,7,4,
+                8,9,10,8,10,11 // backrest
+            ];
+        }
+    
         let vBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, flatten(vertices), gl.STATIC_DRAW);
+    
         let vPosition = gl.getAttribLocation(program, "vPosition");
         gl.vertexAttribPointer(vPosition, 4, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(vPosition);
+    
         let aPosition = gl.getAttribLocation(program, "aPosition");
         gl.vertexAttribPointer(aPosition, 4, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(aPosition);
+    
         let iBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, iBuffer);
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
-        gl.uniform4fv(gl.getUniformLocation(program, "uColor"), vec4(0.3, 0.6, 0.8, 1.0)); // any cube color
+    
+        gl.uniform4fv(gl.getUniformLocation(program, "uColor"), vec4(0.3, 0.6, 0.8, 1.0));
         gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
     }
+
+    function deselectAllFurniture() {
+        for (let item of furniture) item.selected = false;
+        hideFurnitureMenu();
+    }
+
+    function showFurnitureMenu(x, y) {
+        let menu = document.getElementById("furniture-menu");
+        inselectmenu = true;
+        menu.style.left = x + "px";
+        menu.style.top = y + "px";
+        menu.style.display = "block";
+    }
+    
+    function hideFurnitureMenu() {
+        let menu = document.getElementById("furniture-menu");
+        inselectmenu = false;
+        if (menu) menu.style.display = "none";
+    }
+
+
 }
 
 room();
